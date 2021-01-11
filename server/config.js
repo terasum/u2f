@@ -1,7 +1,5 @@
-// require('dotenv').config();
-// const provider = new HDWalletProvider(process.env.PRIVATE_KEY, process.env.INFURA_URL);
-
 module.exports = {
+    db_path: 'database.json',
     privateKey: [
         "64c7ba41d90ec883524ea5787cb23f7e483590a8c703e34859c4c59fc8a8aa25",
         "da4cd8205d04588aebc800830422adb90b9e8ede88c0ce06b2cb2bf41ae31973",
@@ -14,4 +12,4 @@ module.exports = {
     endpoint:"HTTP://127.0.0.1:7545",
     adminAddr:"0xA38df50e0a9AA4a1F1009cE059309E83db0cC04C",
     networkID: 5777,
-}
+};

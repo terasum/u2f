@@ -1,6 +1,6 @@
 const Web3 = require('web3')
 const HDWalletProvider = require('@truffle/hdwallet-provider')
-const env = require('./ethereum/env')
+const env = require('../config')
 const contract = require('@truffle/contract')
 
 /** smart-contract jsons */
@@ -14,9 +14,7 @@ const virtualu2fToken = require('../../security-question/u2f-implementation/u2f-
 var URLSafeBase64 = require('urlsafe-base64')
 const crypto = require('crypto')
 const parser = require('tder')
-const logger = require('loglevel');
-
-
+const logger = require('loglevel')
 
 const token = new virtualu2fToken.U2FToken(
   [],
@@ -33,14 +31,24 @@ async function loadContract(contractRaw, provider) {
 
 class BankAccountsAccessor {
   constructor() {
-    this.provider = new HDWalletProvider(env.privateKey, env.endpoint);
-    this.contract = undefined;
-    this.web3 = new Web3(this.provider);
+    this.provider = new HDWalletProvider(env.privateKey, env.endpoint)
+    this.contract = undefined
+    this.web3 = new Web3(this.provider)
+    this.registered = []
+  }
+  async at(address) {
+    if (this.contract !== undefined) {
+      return this.contract
+    }
+    const bankAccounts = await loadContract(BankAccountsRaw, this.provider)
+    const cc = await bankAccounts.at(address)
+    this.contract = cc
+    return this
   }
 
   async deploy() {
-    if (this.bankAccounts !== undefined) {
-      return this.bankAccounts
+    if (this.contract !== undefined) {
+      return this.contract;
     }
     const ECC = await loadContract(ECCRaw, this.provider)
     const HelperLibrary = await loadContract(HelperLibraryRaw, this.provider)
@@ -61,65 +69,143 @@ class BankAccountsAccessor {
     await bankAccounts.link('ECC', ecc.address)
     await bankAccounts.link('HelperLibrary', helper.address)
 
-    this.contract = await bankAccounts.new(0)
+    const cc = await bankAccounts.new(0)
+
+    this.contract = cc
+
     return this
   }
 
   async getIdentity() {
+    await this.deploy();
     return await this.contract.getIdentity()
   }
 
   async getAddress() {
-    logger.info("deploy contract address", this.contract.address)
+    logger.info('deploy contract address', this.contract.address)
     return this.contract.address
   }
 
   async getTransactionHash() {
-    logger.info("deploy transaction hash", this.contract.transactionHash)
+    logger.info('deploy transaction hash', this.contract.transactionHash)
     return this.contract.transactionHash
   }
 
-  async register() {
+  async register(tx_from) {
     if (this.bankAccounts !== undefined) {
       return undefined
     }
-    if (!!this.registered) {
-      logger.info("reg-1", this.registered)
+    if (!tx_from || tx_from === undefined || tx_from === 'undefined') {
       return this.registered
     }
 
-    this.registered = {
-      algorithm: 'SECP256K',
-      issueTxGasUsed: 0,
+    for (let i = 0; i < this.registered; i++) {
+      let reg = this.registered[i]
+      if (reg.user === tx_from) {
+        return this.registered
+      }
     }
 
-    let appIDRaw = await this.contract.getIdentity()
+    console.log(
+      `============== checked register account address ${tx_from} ==============`,
+    )
+
+    let appIDRaw = await this.contract.getIdentity({ from: tx_from })
     let appID = Buffer.from(String(appIDRaw).slice(2), 'hex')
 
-    await this.registerToken(appID)
-    let issueTx = await this.contract.issueFunds(10000)
+    await this.registerToken(appID, tx_from)
+    let issueTx = await this.contract.issueFunds(10000, { from: env.adminAddr })
 
     console.log('[1] SECP256k issue tx gas usage: ' + issueTx.receipt.gasUsed)
 
-    this.registered.issueTxGasUsed = issueTx.receipt.gasUsed
-
     let balance = await this.contract.balance.call()
     console.log('user %s, amount %d (before)', balance['0'], balance['1'])
-    this.registered.user = balance['0']
-    this.registered.balance_before = balance['1'].toString()
-    console.log("reg-2", this.registered)
+    this.registered.push({
+      user: balance['0'],
+      balance_before: balance['1'].toString(),
+      algorithm: 'SECP256K',
+      issueTxGasUsed: issueTx.receipt.gasUsed,
+    })
     return this.registered
+  }
+
+  async transfer(tx_from, tx_to, amount) {
+    if (typeof amount !== 'number') {
+      amount = 1
+    }
+
+    let result = {
+      transferGasUsed: 0,
+      transferToAddr: '',
+      transferAmount: 0,
+      transferExtraMsg: '',
+      transferChallengeFlag: false,
+      transferChallenge: '',
+    }
+
+    let transferTx = await this.contract.transferFunds(tx_to, amount, {
+      from: tx_from,
+    })
+    console.log(transferTx)
+
+    if (transferTx && transferTx.logs && transferTx.logs.length > 0) {
+      console.log(
+        '[2] SECP256k transfer funds gas usage: ' + transferTx.receipt.gasUsed,
+      )
+
+      result.transferGasUsed = transferTx.receipt.gasUsed
+
+      transferTx.logs.forEach((log) => {
+        if (log.event === 'SuccessCheckPolicy') {
+          console.log(
+            `to: ${log.args['0']}, amount: ${log.args['1']}, extra msg ${log.args['2']}`,
+          )
+          result.transferToAddr = log.args['0']
+          result.transferAmount = log.args['1']
+          result.transferExtraMsg = log.args['2']
+        }
+
+        if (log.event === 'NewTransactionsChallenge') {
+          let challenge = Buffer.from(
+            String(log.args.challenge).slice(2),
+            'hex',
+          )
+          result.transferChallengeFlag = true
+          result.transferChallenge = challenge.toString('hex')
+
+          // let verifyTransactionTx = await this.contract.verifyTransaction(appID, challenge)
+          // console.log(verifyTransactionTx.logs[0].args)
+          // console.log('[3] SECP256k verify transaction tx gas usage: ' + verifyTransactionTx.receipt.gasUsed)
+        }
+      })
+    }
+    let from_balance = await this.contract.balance.call({ from: tx_from })
+    let to_balance = await this.contract.balance.call({ from: tx_to })
+    result.from_balance = {
+      address: from_balance['0'].toString(),
+      balance: from_balance['1'].toString(),
+    }
+    result.to_balance = {
+      address: to_balance['0'].toString(),
+      balance: to_balance['1'].toString(),
+    }
+
+    return result
   }
 
   async accounts() {
     if (this.bankAccounts !== undefined) {
-        return []
+      return []
     }
-    return await this.web3.eth.getAccounts();
+    return await this.web3.eth.getAccounts()
   }
 
-  async registerToken(appID) {
-    let tx = await this.contract.getRegistrationChallenge()
+  async registerToken(appID, tx_from) {
+    console.log(`=========registerToken ============ ${tx_from}`)
+    let tx = await this.contract.getRegistrationChallenge({ from: tx_from })
+
+        console.error(tx);
+
     console.log(tx.logs)
     let result = tx.logs[0].args
     let challenge = Buffer.from(String(result['1']).slice(2), 'hex')
@@ -154,6 +240,7 @@ class BankAccountsAccessor {
       attestationKey,
       signature,
       0,
+      { from: tx_from },
     )
 
     console.log(

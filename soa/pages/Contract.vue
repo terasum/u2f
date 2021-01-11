@@ -3,86 +3,124 @@
     <h2>BankAccounts Contract</h2>
     <el-divider></el-divider>
 
-    <el-card class="box-card">
-      <div slot="header" class="clearfix">
-        <span>Deploy</span>
-        <el-button
-          style="float: right; padding: 3px 0"
-          type="text"
-          @click="deploy"
-          >Deploy</el-button
-        >
-      </div>
-      <pre class="m-0">{{ contract }}</pre>
-    </el-card>
+    <el-row :gutter="10">
+      <el-col :span="12">
+        <el-card class="box-card">
+          <div slot="header" class="clearfix">
+            <span>Contract Information</span>
+            <el-button
+              style="float: right; padding: 5px 5px; margin-left: 10px"
+              type="info"
+              @click="deploy"
+              >Deploy</el-button
+            >
+            <el-button
+              style="float: right; padding: 5px 5px"
+              type="info"
+              @click="getIdentity"
+              >GetIdentity</el-button
+            >
+          </div>
+          <div class="card-body" style="min-height: 300px">
+            <pre class="m-0"> {{ contract }}</pre>
+            <pre class="m-0">AppID-parsed: {{ identity.appID }}</pre>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card class="box-card">
+          <div slot="header" class="clearfix">
+            <span>Accounts Information</span>
+            <el-button
+              style="float: right; padding: 5px 5px; margin-left: 10px"
+              type="info"
+              @click="getAccounts"
+              >RefreshAccounts</el-button
+            >
+          </div>
+          <div class="card-body" style="min-height: 300px">
+            <pre class="m-0">{{ accounts }}</pre>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+    <el-row :gutter="10" style="margin-top: 20px">
 
-    <el-card class="box-card">
-      <div slot="header" class="clearfix">
-        <span>Identity</span>
-        <el-button
-          style="float: right; padding: 3px 0"
-          type="text"
-          @click="getIdentity"
-          >getIdentity</el-button
-        >
-      </div>
-      <pre class="m-0">{{ identity }}</pre>
-    </el-card>
+      <el-col :span="12" >
+        <el-card class="box-card" style="height:500px;">
+          <div slot="header" class="clearfix" style="height:40px;">
+            <span>Register</span>
 
-    <el-card class="box-card">
-      <div slot="header" class="clearfix">
-        <span>Register</span>
-        <el-button
-          style="float: right; padding: 3px 0"
-          type="text"
-          @click="register"
-          >register</el-button
-        >
-      </div>
-      <pre class="m-0">{{ registerInfo }}</pre>
-    </el-card>
+            <el-select v-model="tx_from" placeholder="FROM">
+              <el-option
+                v-for="item in from_accounts"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              >
+              </el-option>
+            </el-select>
 
-    <el-card class="box-card">
-      <div slot="header" class="clearfix">
-        <span>ListAccounts</span>
-        <el-button
-          style="float: right; padding: 3px 0"
-          type="text"
-          @click="getAccounts"
-          >accounts</el-button
-        >
-      </div>
-      <pre class="m-0">{{ accounts }}</pre>
-    </el-card>
+            <el-button
+              style="float: right; padding: 8px 15px"
+              type="primary"
+              @click="register"
+              >register</el-button
+            >
+          </div>
+          <div class="card-body" style="min-height: 350px">
+            <pre class="m-0">{{ registerInfo }}</pre>
+          </div>
+        </el-card>
+      </el-col>
 
-    <el-row>
-      <el-select v-model="tx_from" placeholder="FROM">
-        <el-option
-          v-for="item in from_accounts"
-          :key="item.value"
-          :label="item.label"
-          :value="item.value"
-        >
-        </el-option>
-      </el-select>
+      <el-col :span="12">
+        <el-card class="box-card" style="height:500px;">
+          <div slot="header" class="clearfix" style="height:40px;">
+            <span>Transfer Result</span>
+            <el-button
+              type="primary"
+              style="float: right; padding: 8px 15px; margin-left: 10px"
+              @click="transfer"
+              >transfer</el-button
+            >
+          </div>
+          <div class="card-body" style="min-height: 350px;">
+            <el-select v-model="tx_from" placeholder="FROM">
+              <el-option
+                v-for="item in from_accounts"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              >
+              </el-option>
+            </el-select>
 
-      <el-select
-        v-model="tx_to"
-        collapse-tags
-        style="margin-left: 20px"
-        placeholder="TO"
-      >
-        <el-option
-          v-for="item in to_accounts"
-          :key="item.value"
-          :label="item.label"
-          :value="item.value"
-        >
-        </el-option>
-      </el-select>
-      <el-input-number v-model="tx_amount" @change="handleChange" :min="1" :max="500" label="amount"></el-input-number>
-
-      <el-button type="primary" plain @click="transfer">transfer</el-button>
+            <el-select
+              v-model="tx_to"
+              collapse-tags
+              style="margin-left: 20px"
+              placeholder="TO"
+            >
+              <el-option
+                v-for="item in to_accounts"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              >
+              </el-option>
+            </el-select>
+            <el-input-number
+              v-model="tx_amount"
+              @change="handleChange"
+              :min="1"
+              :max="500"
+              label="amount"
+            ></el-input-number>
+            <pre class="m-0">{{ transferResult }}</pre>
+          </div>
+        </el-card>
+      </el-col>
     </el-row>
   </div>
 </template>
@@ -129,43 +167,57 @@ export default {
       tx_from: undefined,
       tx_to: undefined,
       tx_amount: 0,
+      transferResult: "",
     };
   },
   methods: {
     deploy(event) {
-      event.preventDefault();
+      if (!!event) {
+        event.preventDefault();
+      }
+
       axios.get("/v1/u2f/deployed").then((resp) => {
         console.log("deployed", resp);
         this.contract = resp.data;
       });
     },
     getIdentity(event) {
-      event.preventDefault();
-      console.log(event);
+      if (!!event) {
+        event.preventDefault();
+        console.log(event);
+      }
       axios.get("/v1/u2f/getIdentity").then((resp) => {
-        console.log("getIdentity", resp);
         this.identity = resp.data;
       });
     },
     register(event) {
-      event.preventDefault();
-      console.log(event);
-      axios.get("/v1/u2f/register").then((resp) => {
-        console.log("register", resp);
+      if (!!event) {
+        event.preventDefault();
+        console.log(event);
+      }
+      if (!this.tx_from || this.tx_from === "") {
+        this.noticeError("tx_from is undefined");
+      }
+      axios.get(`/v1/u2f/register?tx_from=${this.tx_from}`).then((resp) => {
+        console.log("register", this.tx_from, resp);
         this.registerInfo = resp.data;
       });
     },
     getAccounts(event) {
-      event.preventDefault();
-      console.log(event);
+      if (!!event) {
+        event.preventDefault();
+        console.log(event);
+      }
       axios.get("/v1/u2f/accounts").then((resp) => {
         console.log("account", resp);
         this.accounts = resp.data;
       });
     },
     transfer(event) {
-      event.preventDefault();
-      console.log(event);
+      if (!!event) {
+        event.preventDefault();
+        console.log(event);
+      }
       console.log(this.tx_from);
       console.log(this.tx_to);
       if (this.tx_from === undefined || this.tx_to === undefined) {
@@ -176,11 +228,25 @@ export default {
         this.noticeError("transfer account (from/to) shouldn't equal");
         return;
       }
-      this.noticeSuccess("transfer success");
+
+      axios
+        .get(
+          `/v1/u2f/transfer?tx_from=${this.tx_from}&tx_to=${this.tx_to}&amount=${this.amount}`
+        )
+        .then((resp) => {
+          console.log("transfer", resp);
+          this.transferResult = resp.data;
+          this.noticeSuccess("transfer success");
+        })
+        .catch((err) => {
+          this.noticeError(`transfer error ${err}`);
+        });
     },
 
     onReset(event) {
-      event.preventDefault();
+      if (!!event) {
+        event.preventDefault();
+      }
       // Reset our form values
       // this.form.email = ''
       // Trick to reset/clear native browser form validation state
@@ -191,7 +257,7 @@ export default {
     },
 
     handleChange(value) {
-        console.log(value);
+      console.log(value);
     },
 
     notice(msg) {
@@ -210,10 +276,9 @@ export default {
     },
   },
   mounted() {
-    axios.get("/v1/u2f/accounts").then((resp) => {
-      console.log("account", resp);
-      this.accounts = resp.data;
-    });
+    this.deploy();
+    this.getAccounts();
+    this.getIdentity();
   },
 };
 </script>
